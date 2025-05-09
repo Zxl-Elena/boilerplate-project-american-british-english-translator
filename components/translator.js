@@ -6,6 +6,7 @@ const britishOnly = require('./british-only.js')
 class Translator {
 
     translate(map, text, isTitle = false) {
+        let replaced = false;
         const words = Object.keys(map)
             .map(key => isTitle ? key.replace(".", "\\.") : key)
             .sort((a, b) => b.length - a.length)
@@ -13,6 +14,7 @@ class Translator {
         const regex = new RegExp(isTitle ? `(${words})` : `\\b(${words})\\b`, "gi");
 
         const translated = text.replace(regex, (match) => {
+            replaced = true;
             const lower = match.toLowerCase();
             let replacement = map[lower];
 
@@ -21,7 +23,7 @@ class Translator {
             }
             return `<span class="highlight">${replacement}</span>`;
         });
-        return translated;
+        return {translated, replaced};
     }
 
     americanToBritish(text) {
@@ -29,15 +31,22 @@ class Translator {
             ...americanOnly,
             ...americanToBritishSpelling,
         };
+        let replaced = false;
 
-        text = this.translate(americanToBritishTitles, text, true);
-        text = this.translate(map, text);
+        const titleResult = this.translate(americanToBritishTitles, text, true);
+        text = titleResult.translated;
+        replaced ||=titleResult.replaced;
+
+        const wordsResult = this.translate(map, text);
+        text = wordsResult.translated;
+        replaced ||=wordsResult.replaced;
 
         text = text.replace(/\b(\d{1,2}):(\d{2})\b/g, (match, h, m) => {
+            replaced = true;
             return `<span class="highlight">${h}.${m}</span>`;
           });
 
-        return text;
+        return {text, replaced};
     };
 
     britishToAmerican(text) {
@@ -52,11 +61,17 @@ class Translator {
               }, {}),
               ...britishOnly
         }
-        text = this.translate(map, text);
+        let replaced = false;
+
+        const wordsResult = this.translate(map, text);
+        replaced ||=wordsResult.replaced;
+        text = wordsResult.translated;
+
         text = text.replace(/\b(\d{1,2})\.(\d{2})\b/g, (match, h, m) => {
+            replaced = true;
             return `<span class="highlight">${h}:${m}</span>`;
         });
-        return text;
+        return {text, replaced};
     }
 }
 
